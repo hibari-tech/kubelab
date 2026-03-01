@@ -6,7 +6,7 @@ Questions this lab prepares you for. Each answer includes a short version (phone
 
 ## "What happens when a pod crashes?"
 
-**The short answer (for a phone screen):**
+**The short answer:**
 Kubernetes detects desired state (2 replicas) ≠ actual (1). The ReplicaSet controller creates a replacement — not a restart, a new pod with a new name. The Service routes traffic to the surviving replica the entire time.
 
 **The detailed answer (for a technical interview):**
@@ -18,10 +18,10 @@ The scheduler places the new pod on an available node. The kubelet pulls the ima
 In KubeLab I ran `kubectl get events -n kubelab -w` before deleting a pod and watched the full sequence fire: `Killing → SuccessfulCreate → Scheduled → Pulled → Started`. The replacement pod had a different name (backend-abc123 became backend-xyz789) because pods are immutable — Kubernetes never modifies them, only replaces them.
 
 **The follow-up they'll ask:**
-"What if you only have replicas: 1?" — Then there's downtime. With one replica, deleting it leaves the Service with no endpoints until the replacement is Ready. Requests get 503 or connection refused during that gap.
+"What if you only have replicas: 1?" Then there's downtime. With one replica, deleting it leaves the Service with no endpoints until the replacement is Ready. Requests get 503 or connection refused during that gap.
 
 **The answer that impresses:**
-"The real protection is readiness probes combined with replicas > 1. Without a readiness probe, the new pod receives traffic the moment its container starts — before it's opened a DB connection or loaded config. The probe is what makes zero-downtime replacement actually zero-downtime."
+"The real protection is readiness probes combined with replicas > 1. Without a readiness probe, the new pod receives traffic the moment its container starts before it's opened a DB connection or loaded config. The probe is what makes zero-downtime replacement actually zero-downtime."
 
 ---
 
@@ -31,13 +31,13 @@ In KubeLab I ran `kubectl get events -n kubelab -w` before deleting a pod and wa
 Cordon the node so no new pods land there, then evict existing pods with `kubectl drain`. The scheduler places replacements on healthy nodes. Use a PodDisruptionBudget (minAvailable: 1) so the API blocks evictions that would leave zero replicas.
 
 **The detailed answer:**
-`kubectl drain <node>` does two things: (1) cordon — sets the node unschedulable so no new pods are placed there; (2) eviction loop — for each non-DaemonSet pod, it posts an Eviction object. The API server checks PodDisruptionBudgets; if evicting would violate minAvailable, it returns 429 and the drain blocks. Without a PDB, all pods on that node can be evicted at once. Evicted pods enter Pending; the scheduler places them on remaining nodes. After the drain, run `kubectl uncordon` when the node is ready again.
+`kubectl drain <node>` does two things: (1) cordon,  sets the node unschedulable so no new pods are placed there; (2) eviction loop — for each non-DaemonSet pod, it posts an Eviction object. The API server checks PodDisruptionBudgets; if evicting would violate minAvailable, it returns 429 and the drain blocks. Without a PDB, all pods on that node can be evicted at once. Evicted pods enter Pending; the scheduler places them on remaining nodes. After the drain, run `kubectl uncordon` when the node is ready again.
 
 **What I can demonstrate:**
 In KubeLab I ran the Drain Node simulation. I had `kubectl get events -n kubelab -w` open and saw Evicted events for each pod, then `kubectl get pods -n kubelab -o wide` showed the same pods on different nodes. The drained node showed SchedulingDisabled in `kubectl get nodes`.
 
 **The follow-up they'll ask:**
-"What if both replicas were on the same node?" — Draining that node evicts both. You get a brief period with zero backend pods. Pod anti-affinity prevents that.
+"What if both replicas were on the same node?" Draining that node evicts both. You get a brief period with zero backend pods. Pod anti-affinity prevents that.
 
 **The answer that impresses:**
 "Always check `kubectl get pods -o wide | grep backend` before a drain. If both replicas are on the same node, you're one drain away from downtime. Add pod anti-affinity with topologyKey: kubernetes.io/hostname so the scheduler spreads them."
@@ -72,10 +72,10 @@ Check Last State in `kubectl describe pod` for OOMKilled and exit code 137. Chec
 First, confirm the restart reason: `kubectl describe pod <name> -n <namespace>` and look at "Last State: Terminated" — Reason and Exit Code. Exit code 137 = OOMKilled (128 + 9). Then compare current usage to the limit: `kubectl top pod` and `kubectl get pod -o jsonpath='{.spec.containers[0].resources}'`. If usage is near the limit, the container is hitting it periodically (e.g. a slow leak or a batch job that peaks every 6 hours). Prometheus: alert on `rate(kube_pod_container_status_restarts_total[15m]) > 0.1`. The "everything looks fine between restarts" is because after each kill, memory resets to zero and the pod is healthy until it grows again.
 
 **What I can demonstrate:**
-KubeLab's Memory Stress simulation. I ran it and watched the pod get OOMKilled — `kubectl describe pod` showed Reason: OOMKilled, Exit Code: 137. The RESTARTS counter incremented. That's exactly the silent restart loop: healthy until the limit is hit, then kill, then healthy again.
+KubeLab's Memory Stress simulation. I ran it and watched the pod get OOMKilled, `kubectl describe pod` showed Reason: OOMKilled, Exit Code: 137. The RESTARTS counter incremented. That's exactly the silent restart loop: healthy until the limit is hit, then kill, then healthy again.
 
 **The follow-up they'll ask:**
-"What if it's not OOMKilled?" — Then check exit code and `kubectl logs <pod> --previous` for the crash output. Exit 1 = application error; 137 = OOM; 143 = SIGTERM (graceful shutdown).
+"What if it's not OOMKilled?" Then check exit code and `kubectl logs <pod> --previous` for the crash output. Exit 1 = application error; 137 = OOM; 143 = SIGTERM (graceful shutdown).
 
 **The answer that impresses:**
 "Alert on restart rate, not just restart count. A pod that restarts once at 3am and once at 9am has restarts: 2 but a pattern. rate(...[15m]) > 0.1 catches the 'every 6 hours' loop before users do."
@@ -88,7 +88,7 @@ KubeLab's Memory Stress simulation. I ran it and watched the pod get OOMKilled �
 CPU limits throttle: the process is paused periodically but stays alive. Memory limits kill: exceeding the limit triggers the kernel OOM killer (SIGKILL, exit 137). Throttling is invisible in `kubectl top`; OOMKill is visible in describe and RESTARTS.
 
 **The detailed answer:**
-CPU: the Linux CFS scheduler enforces the limit by throttling — the process is frozen for part of each period. It never gets a signal; it just runs slower. The pod stays Running, RESTARTS don't increment. `kubectl top` shows usage at the ceiling (e.g. 200m) but doesn't show how much time was throttled; you need Prometheus `container_cpu_cfs_throttled_seconds_total`. Memory: the limit is hard. When the process exceeds it, the kernel OOM killer sends SIGKILL (exit 137). The container dies, Kubernetes restarts it. You see OOMKilled in describe and RESTARTS increment.
+CPU: the Linux CFS scheduler enforces the limit by throttling, the process is frozen for part of each period. It never gets a signal; it just runs slower. The pod stays Running, RESTARTS don't increment. `kubectl top` shows usage at the ceiling (e.g. 200m) but doesn't show how much time was throttled; you need Prometheus `container_cpu_cfs_throttled_seconds_total`. Memory: the limit is hard. When the process exceeds it, the kernel OOM killer sends SIGKILL (exit 137). The container dies, Kubernetes restarts it. You see OOMKilled in describe and RESTARTS increment.
 
 **What I can demonstrate:**
 In KubeLab, CPU Stress: the pod stayed Running for 60s at 200m, no restart. Memory Stress: the pod was OOMKilled, RESTARTS went up, describe showed Reason: OOMKilled, Exit Code: 137.
@@ -151,7 +151,7 @@ You create a ServiceAccount. You create a Role (namespace-scoped) or ClusterRole
 In KubeLab, the backend pod runs as kubelab-backend-sa. The simulations (kill pod, drain, db failure, etc.) work because the Role allows the right verbs. If I removed the RoleBinding, the UI would show 403 for those actions.
 
 **The follow-up they'll ask:**
-"Role vs ClusterRole?" — Role is namespace-scoped. ClusterRole can be used in multiple namespaces (via RoleBinding per namespace) or for cluster-scoped resources (nodes, PVs).
+"Role vs ClusterRole?"  Role is namespace-scoped. ClusterRole can be used in multiple namespaces (via RoleBinding per namespace) or for cluster-scoped resources (nodes, PVs).
 
 **The answer that impresses:**
 "Least privilege: give the app only the verbs it needs. The backend doesn't need get nodes cluster-wide; it needs delete pods and patch statefulsets in one namespace. That's a Role + RoleBinding."

@@ -224,10 +224,17 @@ spec:
           resources:
             limits:
               cpu: 400m
-              memory: 512Mi
+              memory: 1Gi
             requests:
               cpu: 150m
-              memory: 256Mi
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /-/healthy
