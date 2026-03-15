@@ -114,8 +114,12 @@ router.post('/drain-node', async (req, res, next) => {
     logger.info('Draining node', { nodeName });
 
     // Verify the node exists and is not a control-plane
-    const nodeResponse = await coreV1Api.readNode(nodeName);
-    const node = nodeResponse.body;
+    // Use listNode with field selector instead of readNode (workaround for client-node issue)
+    const nodesResponse = await coreV1Api.listNode(undefined, undefined, undefined, `metadata.name=${nodeName}`);
+    if (!nodesResponse.body.items || nodesResponse.body.items.length === 0) {
+      return res.status(404).json({ success: false, error: 'Node not found. Check the node name with: kubectl get nodes' });
+    }
+    const node = nodesResponse.body.items[0];
 
     // Reject both standard kubeadm label and MicroK8s-specific control-plane label
     const isControlPlane =
