@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: backend
-          image: veeno/kubelab-backend:16
+          image: mosmurmur/kubelab-backend:latest
           ports:
             - containerPort: 3000
               name: http
