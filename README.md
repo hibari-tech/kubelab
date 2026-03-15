@@ -15,7 +15,7 @@ Break Kubernetes on purpose. Watch it self-heal.
 - **macOS, Linux, or Windows** with **8GB free RAM minimum, 12GB recommended** (3 VMs × 4GB each for full cluster)
 - [Multipass](https://multipass.run) — install for [macOS](https://multipass.run/docs/installing-on-macos) · [Linux](https://multipass.run/docs/installing-on-linux) · [Windows](https://multipass.run/docs/installing-on-windows)
 - `kubectl` — [install](https://kubernetes.io/docs/tasks/tools/) (e.g. macOS: `brew install kubectl`; Linux: `snap install kubectl --classic` or package manager; Windows: `winget install Kubernetes.kubectl` or Chocolatey)
-- Docker only if building your own images (prebuilt `veeno/kubelab-*` images are public; no Docker Hub account needed)
+- Docker only if building your own images (prebuilt `mosmurmur/kubelab-*` images are public; no Docker Hub account needed). **Multi-platform images available for amd64 and arm64.**
 - ~30 minutes
 
 **Can't run 3 VMs right now?** → [5-minute Docker Compose preview](setup/docker-compose-preview.md). See the full UI with mock data. Simulations return fake responses — no real cluster, no real self-healing — but you can explore every screen and read all the content. Set up a real cluster when you're ready for the actual experience.
@@ -127,7 +127,7 @@ kubectl auth can-i delete pods --as=system:serviceaccount:kubelab:kubelab-backen
 
 ## Reference
 
-[Architecture](docs/architecture.md) · [All Scenarios](docs/failure-scenarios.md) · [Interview Prep](docs/interview-prep.md) · [Docker Compose preview](setup/docker-compose-preview.md) · [MicroK8s Setup](setup/k8s-cluster-setup.md)
+[Architecture](docs/architecture.md) · [All Scenarios](docs/failure-scenarios.md) · [Interview Prep](docs/interview-prep.md) · [Docker Compose preview](setup/docker-compose-preview.md) · [MicroK8s Setup](setup/k8s-cluster-setup.md) · [Multi-Platform Docker Builds](docs/docker-build.md)
 
 ## For Engineers Ready to Go Deeper
 
