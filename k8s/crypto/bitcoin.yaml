@@ -1,0 +1,180 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bitcoin
+  namespace: kubelab
+  labels:
+    app: bitcoin
+    component: crypto
+spec:
+  serviceName: bitcoin
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bitcoin
+
+  template:
+    metadata:
+      labels:
+        app: bitcoin
+        component: crypto
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9332"
+
+    spec:
+      # Run as non-root user for security
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Wait for PVC to be mounted before starting
+      initContainers:
+        - name: init-permissions
+          image: busybox:1.36
+          command: ['sh', '-c', 'chown -R 1000:1000 /root/.bitcoin']
+          volumeMounts:
+            - name: bitcoin-data
+              mountPath: /root/.bitcoin
+
+      containers:
+        # Main Bitcoin node container
+        - name: bitcoind
+          image: bitcoin/bitcoin:latest
+          ports:
+            - containerPort: 18332  # Testnet RPC
+              name: rpc
+            - containerPort: 18333  # Testnet P2P
+              name: p2p
+
+          # Bitcoin testnet configuration
+          command:
+            - bitcoind
+            - -testnet
+            - -prune=10000           # Keep ~10GB of blocks
+            - -rpcuser=$(RPC_USER)
+            - -rpcpassword=$(RPC_PASSWORD)
+            - -rpcallowip=0.0.0.0/0
+            - -rpcbind=0.0.0.0
+            - -server=1
+            - -printtoconsole
+            - -debug=rpc        # Enable RPC debugging for learning
+
+          env:
+            - name: RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: crypto-credentials
+                  key: bitcoin-rpc-user
+            - name: RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crypto-credentials
+                  key: bitcoin-rpc-password
+
+          # Resource management
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+
+          # Persistent storage for blockchain data
+          volumeMounts:
+            - name: bitcoin-data
+              mountPath: /root/.bitcoin
+
+          # Health checks
+          readinessProbe:
+            exec:
+              command:
+                - bitcoin-cli
+                - -testnet
+                - -rpcuser=$(RPC_USER)
+                - -rpcpassword=$(RPC_PASSWORD)
+                - getblockchaininfo
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          livenessProbe:
+            exec:
+              command:
+                - bitcoin-cli
+                - -testnet
+                - -rpcuser=$(RPC_USER)
+                - -rpcpassword=$(RPC_PASSWORD)
+                - getblockchaininfo
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+
+        # Prometheus exporter sidecar
+        - name: exporter
+          image: jvstein/bitcoin-prometheus-exporter:latest
+          ports:
+            - containerPort: 9332
+              name: metrics
+
+          env:
+            - name: BITCOIN_RPC_HOST
+              value: "127.0.0.1"
+            - name: BITCOIN_RPC_PORT
+              value: "18332"
+            - name: BITCOIN_RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: crypto-credentials
+                  key: bitcoin-rpc-user
+            - name: BITCOIN_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crypto-credentials
+                  key: bitcoin-rpc-password
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+  # Persistent storage
+  volumeClaimTemplates:
+    - metadata:
+        name: bitcoin-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 15Gi  # 10GB pruned + 5GB headroom
+
+---
+# Headless service for stable network identity
+apiVersion: v1
+kind: Service
+metadata:
+  name: bitcoin
+  namespace: kubelab
+  labels:
+    app: bitcoin
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: bitcoin
+  ports:
+    - port: 18332
+      name: rpc
+      targetPort: 18332
+    - port: 18333
+      name: p2p
+      targetPort: 18333
+    - port: 9332
+      name: metrics
+      targetPort: 9332

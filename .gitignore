@@ -35,6 +35,7 @@ Thumbs.db
 kubeconfig
 # Real secrets file - never commit this, use k8s/secrets.yaml.example as template
 k8s/secrets.yaml
+k8s/crypto/secrets.yaml
 
 # Docker
 .dockerignore.bak
