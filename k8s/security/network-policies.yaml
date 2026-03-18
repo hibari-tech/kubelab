@@ -266,4 +266,143 @@ spec:
           port: 443
         - protocol: TCP
           port: 16443
+---
+# Allow backend egress to Bitcoin RPC
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress-to-bitcoin
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: bitcoin
+      ports:
+        - protocol: TCP
+          port: 18332
+---
+# Allow backend egress to Lightning REST
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress-to-lightning
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: lightning
+      ports:
+        - protocol: TCP
+          port: 10009
+---
+# Allow Bitcoin P2P egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-bitcoin-p2p-egress
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: bitcoin
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 18333
+---
+# Allow Lightning P2P egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-lightning-p2p-egress
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: lightning
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 9735
+---
+# Allow Lightning to reach Bitcoin RPC
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-lightning-egress-to-bitcoin
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: lightning
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: bitcoin
+      ports:
+        - protocol: TCP
+          port: 18332
+---
+# Allow Prometheus to scrape Bitcoin exporter
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-to-bitcoin
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: bitcoin
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9332
+---
+# Allow Prometheus to scrape Lightning metrics
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-to-lightning
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: lightning
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9092
 

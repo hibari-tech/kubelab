@@ -12,10 +12,14 @@ const logger = require('./middleware/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/error-handler');
 const { register, httpRequestCounter, httpRequestDuration } = require('./utils/metrics');
 const readinessState = require('./utils/readiness-state');
+const { initDb } = require('./db/init');
+const { recoverOrderBook } = require('./utils/matching-engine');
 
 // Import routes
 const clusterRoutes = require('./routes/cluster');
 const simulationRoutes = require('./routes/simulation');
+const cryptoRoutes = require('./routes/crypto');
+const exchangeRoutes = require('./routes/exchange');
 
 // Initialize Express app
 const app = express();
@@ -146,6 +150,8 @@ app.use('/api/simulate', (req, res, next) => {
   next();
 });
 app.use('/api/simulate', simulationRoutes);
+app.use('/api/crypto', cryptoRoutes);
+app.use('/api/exchange', exchangeRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -167,6 +173,20 @@ app.get('/', (req, res) => {
         dbFailure: 'POST /api/simulate/db-failure',
         failReadiness: 'POST /api/simulate/fail-readiness',
         restoreReadiness: 'POST /api/simulate/restore-readiness'
+      },
+      crypto: {
+        status: 'GET /api/crypto/status',
+        bitcoinInfo: 'GET /api/crypto/bitcoin/info',
+        lightningInfo: 'GET /api/crypto/lightning/info',
+        depositAddress: 'GET /api/crypto/deposit-address?userId='
+      },
+      exchange: {
+        registerUser: 'POST /api/exchange/users',
+        placeOrder: 'POST /api/exchange/orders',
+        orderbook: 'GET /api/exchange/orderbook',
+        trades: 'GET /api/exchange/trades',
+        ticker: 'GET /api/exchange/ticker',
+        wallet: 'GET /api/exchange/wallet?userId='
       }
     }
   });
@@ -185,7 +205,17 @@ async function startServer() {
     logger.info('Initializing Kubernetes client...');
     initializeK8sClient();
     logger.info('Kubernetes client initialized successfully');
-    
+
+    // Initialize database
+    logger.info('Initializing database...');
+    await initDb();
+    logger.info('Database initialized successfully');
+
+    // Recover order book from DB
+    logger.info('Recovering order book from database...');
+    await recoverOrderBook();
+    logger.info('Order book recovered');
+
     // Start Express server
     app.listen(PORT, '0.0.0.0', () => {
       logger.info(`KubeLab Backend Server started`, {

@@ -33,7 +33,7 @@ spec:
       initContainers:
         - name: wait-for-bitcoin
           image: busybox:1.36
-          command: ['sh', '-c', 'until nc -z bitcoin-0.bitcoin.kubelab.svc.cluster.local 18332; do echo ready; sleep 2; done && echo "Bitcoin RPC ready"']
+          command: ['sh', '-c', 'until nc -z bitcoin-0.bitcoin.kubelab.svc.cluster.local 18332; do echo waiting; sleep 2; done && echo "Bitcoin RPC ready"']
           resources:
             requests:
               cpu: 10m
@@ -44,12 +44,14 @@ spec:
 
       containers:
         - name: lnd
-          image: lightninglabs/lnd:v0.17.0-beta.rc1
+          image: lightninglabs/lnd:daily-testing-only
           ports:
             - containerPort: 10009
               name: rest
             - containerPort: 9735
               name: p2p
+            - containerPort: 9092
+              name: metrics
           command:
             - lnd
             - --bitcoin.active
@@ -59,7 +61,8 @@ spec:
             - --bitcoind.rpcuser=$(RPC_USER)
             - --bitcoind.rpcpass=$(RPC_PASSWORD)
             - --restlisten=0.0.0.0:10009
-            - --noseedbackup  # TESTnet only - for learning
+            - --noseedbackup
+            - --prometheus.enable
           env:
             - name: RPC_USER
               valueFrom:
@@ -85,45 +88,23 @@ spec:
             limits:
               cpu: 400m
               memory: 512Mi
-          readinessProbe:
-            exec:
-              command:
-                - lncli
-                - getinfo
-              </stdin>
-            - --rpcserver
-              - --restserver
-            - --restlisten=0.0.0.0:10009
-            - --noseedbackup  # TESTNET only
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
 
-        # Custom LND metrics exporter sidecar
-        - name: lnd-exporter
-          image: node:18-alpine
-          ports:
-            - containerPort: 9092
-              name: metrics
-          command:
-            - node
-            - /usr/src/app/exporters/lnd-exporter.js
-          workingDir: /usr/src/app
-          env:
-            - LND_REST_HOST=lightning-0.lightning.kubelab.svc.cluster.local
-            - LND_REST_PORT=10009
-          volumeMounts:
-            - name: admin-macaroon
-              mountPath: /root/.lnd/data/chain/bitcoin/testnet/admin.macaroon
-              readOnly: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /v1/getinfo
+              port: 10009
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /v1/getinfo
+              port: 10009
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
 
   # Persistent storage
   volumeClaimTemplates:
@@ -134,3 +115,26 @@ spec:
         resources:
           requests:
             storage: 5Gi
+---
+# Headless service for stable network identity
+apiVersion: v1
+kind: Service
+metadata:
+  name: lightning
+  namespace: kubelab
+  labels:
+    app: lightning
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: lightning
+  ports:
+    - port: 10009
+      name: rest
+      targetPort: 10009
+    - port: 9735
+      name: p2p
+      targetPort: 9735
+    - port: 9092
+      name: metrics
+      targetPort: 9092

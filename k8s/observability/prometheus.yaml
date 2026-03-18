@@ -152,6 +152,38 @@ data:
             replacement: ${1}
           - replacement: /metrics/cadvisor
             target_label: __metrics_path__
+
+      # Scrape Bitcoin node exporter
+      - job_name: 'bitcoin-exporter'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - kubelab
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: bitcoin
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: $1:9332
+
+      # Scrape Lightning node metrics
+      - job_name: 'lightning-exporter'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - kubelab
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: lightning
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: $1:9092
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

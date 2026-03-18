@@ -93,11 +93,9 @@ spec:
           readinessProbe:
             exec:
               command:
-                - bitcoin-cli
-                - -testnet
-                - -rpcuser=$(RPC_USER)
-                - -rpcpassword=$(RPC_PASSWORD)
-                - getblockchaininfo
+                - /bin/sh
+                - -c
+                - bitcoin-cli -testnet -rpcuser=$RPC_USER -rpcpassword=$RPC_PASSWORD getblockchaininfo
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -105,11 +103,9 @@ spec:
           livenessProbe:
             exec:
               command:
-                - bitcoin-cli
-                - -testnet
-                - -rpcuser=$(RPC_USER)
-                - -rpcpassword=$(RPC_PASSWORD)
-                - getblockchaininfo
+                - /bin/sh
+                - -c
+                - bitcoin-cli -testnet -rpcuser=$RPC_USER -rpcpassword=$RPC_PASSWORD getblockchaininfo
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10

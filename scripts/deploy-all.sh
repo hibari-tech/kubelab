@@ -10,6 +10,7 @@ K8S_DIR="$SCRIPT_DIR/../k8s"
 BASE_DIR="$K8S_DIR/base"
 SECURITY_DIR="$K8S_DIR/security"
 OBSERVABILITY_DIR="$K8S_DIR/observability"
+CRYPTO_DIR="$K8S_DIR/crypto"
 
 echo "🚀 Deploying KubeLab Stack"
 echo "=========================="
@@ -108,13 +109,13 @@ wait_for_pods() {
 }
 
 # Step 1: Create namespace
-echo "📦 Step 1/6: Creating namespace..."
+echo "📦 Step 1/7: Creating namespace..."
 kubectl apply -f "$BASE_DIR/namespace.yaml"
 echo "✅ Namespace created"
 echo ""
 
 # Step 2: Apply secrets (must come before any workloads)
-echo "🔑 Step 2/6: Applying secrets..."
+echo "🔑 Step 2/7: Applying secrets..."
 SECRETS_FILE="$K8S_DIR/secrets.yaml"
 if [ ! -f "$SECRETS_FILE" ]; then
     echo "❌ k8s/secrets.yaml not found."
@@ -128,14 +129,14 @@ echo "✅ Secrets applied"
 echo ""
 
 # Step 3: Deploy security (RBAC, NetworkPolicy)
-echo "🔒 Step 3/6: Deploying security configurations..."
+echo "🔒 Step 3/7: Deploying security configurations..."
 kubectl apply -f "$SECURITY_DIR/rbac.yaml"
 kubectl apply -f "$SECURITY_DIR/network-policies.yaml"
 echo "✅ Security configurations deployed"
 echo ""
 
 # Step 4: Deploy base application (Postgres, Backend, Frontend)
-echo "📦 Step 4/6: Deploying base application..."
+echo "📦 Step 4/7: Deploying base application..."
 
 echo "   Deploying PostgreSQL..."
 kubectl apply -f "$BASE_DIR/postgres.yaml"
@@ -152,8 +153,35 @@ wait_for_pods "kubelab" "app=frontend" 120
 echo "✅ Base application deployed"
 echo ""
 
-# Step 5: Deploy observability stack
-echo "📊 Step 5/6: Deploying observability stack..."
+# Step 5: Deploy crypto nodes (Bitcoin + Lightning)
+echo "₿ Step 5/7: Deploying crypto infrastructure..."
+
+CRYPTO_SECRETS="$K8S_DIR/crypto/secrets.yaml"
+if [ -f "$CRYPTO_SECRETS" ]; then
+    kubectl apply -f "$CRYPTO_SECRETS"
+    echo "   Crypto secrets applied"
+else
+    echo "   ⚠️  No k8s/crypto/secrets.yaml found — skipping crypto secrets"
+fi
+
+if [ -d "$CRYPTO_DIR" ]; then
+    echo "   Deploying Bitcoin node..."
+    kubectl apply -f "$CRYPTO_DIR/bitcoin.yaml"
+    echo "   ⏳ Bitcoin node deploying (StatefulSet — PVC provisioning + IBD will take time)..."
+    echo "   ⚠️  Bitcoin Initial Block Download can take hours on testnet. The pod will show Running once synced."
+
+    echo "   Deploying Lightning node..."
+    kubectl apply -f "$CRYPTO_DIR/lightning.yaml"
+    echo "   ⏳ Lightning node deploying (waits for Bitcoin RPC first)..."
+else
+    echo "   ⚠️  No crypto manifests found — skipping crypto deployment"
+fi
+
+echo "✅ Crypto infrastructure deployed"
+echo ""
+
+# Step 6: Deploy observability stack
+echo "📊 Step 6/7: Deploying observability stack..."
 
 echo "   Deploying kube-state-metrics..."
 kubectl apply -f "$OBSERVABILITY_DIR/kube-state-metrics.yaml"
@@ -175,7 +203,7 @@ echo "✅ Observability stack deployed"
 echo ""
 
 # Step 6: Verification
-echo "🔍 Step 6/6: Verifying deployment..."
+echo "🔍 Step 7/7: Verifying deployment..."
 
 echo ""
 echo "📋 Pod Status:"
@@ -224,6 +252,11 @@ echo "🔧 Backend API:"
 echo "   Port-forward: kubectl port-forward -n kubelab svc/backend 3000:3000"
 echo "   Health: http://localhost:3000/health"
 echo "   Metrics: http://localhost:3000/metrics"
+echo ""
+
+echo "₿ Crypto Nodes:"
+echo "   Bitcoin RPC:  kubectl port-forward -n kubelab svc/bitcoin 18332:18332"
+echo "   Lightning REST: kubectl port-forward -n kubelab svc/lightning 10009:10009"
 echo ""
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
