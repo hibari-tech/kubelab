@@ -20,7 +20,7 @@ services:
       - kubelab-network
 
   backend:
-    image: veeno/kubelab-backend:latest
+    image: mosmurmur/kubelab-backend:latest
     container_name: kubelab-backend
     environment:
       NODE_ENV: development
@@ -46,7 +46,7 @@ services:
       - kubelab-network
 
   frontend:
-    image: veeno/kubelab-frontend:latest
+    image: mosmurmur/kubelab-frontend:latest
     container_name: kubelab-frontend
     environment:
       REACT_APP_API_URL: http://backend:3000

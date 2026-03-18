@@ -13,7 +13,7 @@ This guide walks you through creating a real 3-node Kubernetes cluster using Mul
 
 - **Multipass** — [Install for your OS](https://multipass.run): macOS (`brew install --cask multipass`), Linux (snap or .deb from multipass.run), Windows (installer from multipass.run)
 - **kubectl** — [Install](https://kubernetes.io/docs/tasks/tools/): macOS (`brew install kubectl`), Linux (`snap install kubectl --classic` or distro package), Windows (`winget install Kubernetes.kubectl` or Chocolatey)
-- **Docker** — only if building custom images; prebuilt `veeno/kubelab-*` images are public (no Docker Hub account needed)
+- **Docker** — only if building custom images; prebuilt `mosmurmur/kubelab-*` images are public (no Docker Hub account needed)
 - **~8GB free RAM minimum, 12GB recommended, and ~60GB free disk** on your machine (host, not the VMs)
 
 ---

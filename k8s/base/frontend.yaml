@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: veeno/kubelab-frontend:16
+          image: mosmurmur/kubelab-frontend:latest
           ports:
             - containerPort: 8080
               name: http

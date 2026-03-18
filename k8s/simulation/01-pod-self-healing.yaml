@@ -83,7 +83,7 @@ spec:
       # Without it, traffic would hit a pod that isn't ready yet.
       containers:
         - name: backend
-          image: veeno/kubelab-backend:latest
+          image: mosmurmur/kubelab-backend:latest
           readinessProbe:
             httpGet:
               path: /ready

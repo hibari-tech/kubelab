@@ -109,8 +109,8 @@ docker-compose down
 ## Current Status
 
 ✅ **Images on Docker Hub**:
-- `veeno/kubelab-backend:15`
-- `veeno/kubelab-frontend:15`
+- `mosmurmur/kubelab-backend:latest`
+- `mosmurmur/kubelab-frontend:latest`
 
 ✅ **Manifests Updated**:
 - `k8s/base/backend.yaml` → Uses Docker Hub images
@@ -118,4 +118,4 @@ docker-compose down
 
 ---
 
-**Note**: Replace `veeno` with your Docker Hub username in examples.
+**Note**: Replace `mosmurmur` with your Docker Hub username in examples.

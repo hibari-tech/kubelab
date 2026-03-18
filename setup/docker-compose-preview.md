@@ -77,7 +77,7 @@ Verify: `kubectl get nodes` → should show 3 nodes `Ready`.
 
 ### 5. Build & push images (or use existing ones)
 
-The manifests already reference `veeno/kubelab-backend` and `veeno/kubelab-frontend` on Docker Hub — you can skip this step and deploy immediately. Only do this if you've modified the source code.
+The manifests already reference `mosmurmur/kubelab-backend` and `mosmurmur/kubelab-frontend` on Docker Hub — you can skip this step and deploy immediately. Only do this if you've modified the source code.
 
 ```bash
 ./scripts/build-and-push.sh <your-dockerhub-username>
