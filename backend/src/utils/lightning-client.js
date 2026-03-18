@@ -6,7 +6,7 @@
 const http = require('http');
 
 const REST_HOST = process.env.LIGHTNING_REST_HOST || 'lightning-0.lightning.kubelab.svc.cluster.local';
-const REST_PORT = process.env.LIGHTNING_REST_PORT || '10009';
+const REST_PORT = process.env.LIGHTNING_REST_PORT || '8080';
 
 function restCall(path, method = 'GET') {
   return new Promise((resolve, reject) => {

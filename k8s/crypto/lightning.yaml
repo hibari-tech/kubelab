@@ -31,6 +31,22 @@ spec:
           type: RuntimeDefault
 
       initContainers:
+        - name: init-permissions
+          image: busybox:1.36
+          command: ['sh', '-c', 'chown -R 1000:1000 /data']
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: lightning-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 20m
+              memory: 32Mi
         - name: wait-for-bitcoin
           image: busybox:1.36
           command: ['sh', '-c', 'until nc -z bitcoin-0.bitcoin.kubelab.svc.cluster.local 18332; do echo waiting; sleep 2; done && echo "Bitcoin RPC ready"']
@@ -47,6 +63,8 @@ spec:
           image: lightninglabs/lnd:daily-testing-only
           ports:
             - containerPort: 10009
+              name: rpc
+            - containerPort: 8080
               name: rest
             - containerPort: 9735
               name: p2p
@@ -54,15 +72,19 @@ spec:
               name: metrics
           command:
             - lnd
-            - --bitcoin.active
             - --bitcoin.testnet
             - --bitcoin.node=bitcoind
             - --bitcoind.rpchost=bitcoin-0.bitcoin.kubelab.svc.cluster.local:18332
             - --bitcoind.rpcuser=$(RPC_USER)
             - --bitcoind.rpcpass=$(RPC_PASSWORD)
-            - --restlisten=0.0.0.0:10009
+            - --bitcoind.zmqpubrawblock=tcp://bitcoin-0.bitcoin.kubelab.svc.cluster.local:28332
+            - --bitcoind.zmqpubrawtx=tcp://bitcoin-0.bitcoin.kubelab.svc.cluster.local:28333
+            - --lnddir=/data
+            - --rpclisten=0.0.0.0:10009
+            - --restlisten=0.0.0.0:8080
             - --noseedbackup
             - --prometheus.enable
+            - --prometheus.listen=0.0.0.0:9092
           env:
             - name: RPC_USER
               valueFrom:
@@ -76,10 +98,7 @@ spec:
                   key: bitcoin-rpc-password
           volumeMounts:
             - name: lightning-data
-              mountPath: /root/.lnd
-            - name: admin-macaroon
-              mountPath: /root/.lnd/data/chain/bitcoin/testnet/admin.macaroon
-              readOnly: true
+              mountPath: /data
 
           resources:
             requests:
@@ -90,19 +109,17 @@ spec:
               memory: 512Mi
 
           readinessProbe:
-            httpGet:
-              path: /v1/getinfo
-              port: 10009
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 5
 
           livenessProbe:
-            httpGet:
-              path: /v1/getinfo
-              port: 10009
-            initialDelaySeconds: 60
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 120
             periodSeconds: 30
             timeoutSeconds: 10
 
@@ -130,8 +147,11 @@ spec:
     app: lightning
   ports:
     - port: 10009
-      name: rest
+      name: rpc
       targetPort: 10009
+    - port: 8080
+      name: rest
+      targetPort: 8080
     - port: 9735
       name: p2p
       targetPort: 9735

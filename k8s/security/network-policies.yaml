@@ -267,6 +267,67 @@ spec:
         - protocol: TCP
           port: 16443
 ---
+# Allow Bitcoin ingress from backend (RPC), lightning (RPC+ZMQ), and Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-bitcoin-ingress
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: bitcoin
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+        - podSelector:
+            matchLabels:
+              app: lightning
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 18332
+        - protocol: TCP
+          port: 9332
+        - protocol: TCP
+          port: 28332
+        - protocol: TCP
+          port: 28333
+---
+# Allow Lightning ingress from backend (REST) and Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-lightning-ingress
+  namespace: kubelab
+spec:
+  podSelector:
+    matchLabels:
+      app: lightning
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 10009
+        - protocol: TCP
+          port: 9092
+---
 # Allow backend egress to Bitcoin RPC
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -288,7 +349,7 @@ spec:
         - protocol: TCP
           port: 18332
 ---
-# Allow backend egress to Lightning REST
+# Allow backend egress to Lightning REST (8080) and RPC (10009)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -306,6 +367,8 @@ spec:
             matchLabels:
               app: lightning
       ports:
+        - protocol: TCP
+          port: 8080
         - protocol: TCP
           port: 10009
 ---
@@ -343,7 +406,7 @@ spec:
         - protocol: TCP
           port: 9735
 ---
-# Allow Lightning to reach Bitcoin RPC
+# Allow Lightning to reach Bitcoin RPC and ZMQ
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -363,6 +426,10 @@ spec:
       ports:
         - protocol: TCP
           port: 18332
+        - protocol: TCP
+          port: 28332
+        - protocol: TCP
+          port: 28333
 ---
 # Allow Prometheus to scrape Bitcoin exporter
 apiVersion: networking.k8s.io/v1
