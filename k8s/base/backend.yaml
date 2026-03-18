@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: backend
-          image: mosmurmur/kubelab-backend:latest
+          image: mosmurmurrmur/kubelab-backend:latest
           ports:
             - containerPort: 3000
               name: http
@@ -53,6 +53,24 @@ spec:
                   key: connection-string
             - name: PORT
               value: "3000"
+            - name: BITCOIN_RPC_HOST
+              value: "bitcoin-0.bitcoin.kubelab.svc.cluster.local"
+            - name: BITCOIN_RPC_PORT
+              value: "18332"
+            - name: BITCOIN_RPC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: crypto-credentials
+                  key: bitcoin-rpc-user
+            - name: BITCOIN_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crypto-credentials
+                  key: bitcoin-rpc-password
+            - name: LIGHTNING_REST_HOST
+              value: "lightning-0.lightning.kubelab.svc.cluster.local"
+            - name: LIGHTNING_REST_PORT
+              value: "10009"
           resources:
             limits:
               cpu: 200m

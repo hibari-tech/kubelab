@@ -68,6 +68,37 @@ const nodesReadyGauge = new client.Gauge({
   registers: [register]
 });
 
+// Exchange order counter
+const exchangeOrderCounter = new client.Counter({
+  name: 'exchange_orders_total',
+  help: 'Total exchange orders placed',
+  labelNames: ['side', 'type', 'status'],
+  registers: [register]
+});
+
+// Exchange trade counter
+const exchangeTradeCounter = new client.Counter({
+  name: 'exchange_trades_total',
+  help: 'Total trades executed',
+  registers: [register]
+});
+
+// Exchange order book depth gauge
+const exchangeOrderbookDepth = new client.Gauge({
+  name: 'exchange_orderbook_depth',
+  help: 'Number of orders on each side of the book',
+  labelNames: ['side'],
+  registers: [register]
+});
+
+// Crypto node sync height gauge
+const cryptoSyncHeight = new client.Gauge({
+  name: 'crypto_node_sync_height',
+  help: 'Current blockchain sync height',
+  labelNames: ['node'],
+  registers: [register]
+});
+
 module.exports = {
   register,
   httpRequestCounter,
@@ -76,6 +107,10 @@ module.exports = {
   k8sOperationDuration,
   simulationEventsCounter,
   podsRunningGauge,
-  nodesReadyGauge
+  nodesReadyGauge,
+  exchangeOrderCounter,
+  exchangeTradeCounter,
+  exchangeOrderbookDepth,
+  cryptoSyncHeight
 };
 

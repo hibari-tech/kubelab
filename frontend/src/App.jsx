@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { Activity, BookOpen, Zap } from 'lucide-react';
+import { Activity, BookOpen, Zap, TrendingUp } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { useClusterStatus } from './hooks/useClusterStatus';
 import ClusterOverview    from './components/ClusterOverview';
@@ -14,12 +14,17 @@ import SimulationPanel   from './components/SimulationPanel';
 import ClusterMap        from './components/ClusterMap';
 import EventsFeed        from './components/EventsFeed';
 import OnboardingModal   from './components/OnboardingModal';
+import ExchangePage      from './pages/ExchangePage';
 import { docLinks } from './config/docLinks';
 
 const MODE_KEY = 'kubelab_mode';
 
 function App() {
   const [mockMode, setMockMode] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    try { return localStorage.getItem('kubelab_tab') || 'kubelab'; }
+    catch { return 'kubelab'; }
+  });
   useEffect(() => {
     fetch('/health')
       .then(r => r.json())
@@ -85,41 +90,69 @@ function App() {
         </div>
       )}
 
+      {/* Persistent navigation bar */}
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Activity className="w-7 h-7 text-blue-600" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 leading-none">KubeLab</h1>
-                <p className="text-xs text-gray-400 mt-0.5">Kubernetes Failure Simulation Lab</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('kubelab'); try { localStorage.setItem('kubelab_tab', 'kubelab'); } catch {} }}
+                className={`flex items-center gap-2 ${activeTab === 'kubelab' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                <Activity className="w-7 h-7" />
+                <div>
+                  <h1 className="text-xl font-bold leading-none">KubeLab</h1>
+                  <p className="text-xs text-gray-400 mt-0.5">Kubernetes Failure Simulation Lab</p>
+                </div>
+              </button>
             </div>
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={toggleMode}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
-                title={mode === 'guided' ? 'Switch to Explore mode — all simulations unlocked, no gates' : 'Switch to Guided mode — sequential, with terminal gate and quiz'}
+                onClick={() => {
+                  const next = activeTab === 'kubelab' ? 'exchange' : 'kubelab';
+                  setActiveTab(next);
+                  try { localStorage.setItem('kubelab_tab', next); } catch {}
+                }}
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+                  activeTab === 'exchange'
+                    ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                    : 'border-gray-200 hover:border-gray-400 text-gray-600'
+                }`}
+                title="Switch between KubeLab and Exchange"
               >
-                {mode === 'guided' ? (
-                  <>
-                    <BookOpen className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="text-gray-600">Guided</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="text-gray-600">Explore</span>
-                  </>
-                )}
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Exchange</span>
               </button>
-              <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${isLoading ? 'bg-yellow-400 animate-pulse' : error ? 'bg-red-400' : 'bg-green-400'}`} />
-                <span className="text-sm text-gray-500">
-                  {isLoading ? 'Connecting…' : error ? 'Error' : 'Live'}
-                </span>
-              </div>
+              {activeTab === 'kubelab' && (
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
+                  title={mode === 'guided' ? 'Switch to Explore mode — all simulations unlocked, no gates' : 'Switch to Guided mode — sequential, with terminal gate and quiz'}
+                >
+                  {mode === 'guided' ? (
+                    <>
+                      <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                      <span className="text-gray-600">Guided</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-gray-600">Explore</span>
+                    </>
+                  )}
+                </button>
+              )}
+              {activeTab === 'kubelab' && (
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${isLoading ? 'bg-yellow-400 animate-pulse' : error ? 'bg-red-400' : 'bg-green-400'}`} />
+                  <span className="text-sm text-gray-500">
+                    {isLoading ? 'Connecting…' : error ? 'Error' : 'Live'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -142,7 +175,13 @@ function App() {
 
       <OnboardingModal onStartHere={() => setExpandFirstSim(true)} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {activeTab === 'exchange' ? (
+        <ExchangePage />
+      ) : (
+        <>
+          <OnboardingModal onStartHere={() => setExpandFirstSim(true)} />
+
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
@@ -219,6 +258,8 @@ function App() {
           </p>
         </div>
       </footer>
+        </>
+      )}
     </div>
   );
 }
